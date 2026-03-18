@@ -61,8 +61,7 @@ void load_directory(void) {
     // Loop through entries
     while ((de = readdir(d)) != NULL) {
         // Skip "."
-        if (strcmp(de->d_name, ".") == 0)
-            continue;
+        if (strcmp(de->d_name, ".") == 0) continue;
         // Get metadata
         if (stat(de->d_name, &st) == -1) {
             perror("stat");
@@ -120,8 +119,7 @@ void sort_entries(void) {
     char choice[8];
     // Read user input
     printf("\nSort by: (N)ame  (S)ize  (D)ate: ");
-    if (fgets(choice, sizeof(choice), stdin) == NULL)
-        return;
+    if (fgets(choice, sizeof(choice), stdin) == NULL) return;
     // Allow for both uppercase and lowercase (take notes lab2)
     char c = toupper(choice[0]);
     // Sort by name using qsort
@@ -182,8 +180,7 @@ void display_menu(void) {
     int i, end;
     printf("\n================================================\n");
     // Current working directory
-    if (getcwd(cwd, sizeof(cwd)) != NULL)
-        printf("  Current Working Dir: %s\n", cwd);
+    if (getcwd(cwd, sizeof(cwd)) != NULL) printf("  Current Working Dir: %s\n", cwd);
     else perror("getcwd");
     // Time
     t = time(NULL);
@@ -196,9 +193,7 @@ void display_menu(void) {
     printf("  Current Time: %s\n", timebuf);
     // Show files
     printf("\n  Files:\n");
-    if (file_count == 0) {
-        printf("    (no files)\n");
-    }
+    if (file_count == 0) printf("    (no files)\n");
     else {
         end = file_offset + PAGE_SIZE;
         if (end > file_count) end = file_count;
@@ -224,16 +219,12 @@ void display_menu(void) {
                 i, files[i].name, sizebuf, datebuf, perms);
         }
         // If too many files on display, show prompts to tell user you can change view
-        if (file_offset > 0)
-            printf("    [P] Previous files...\n");
-        if (end < file_count)
-            printf("    [N] More files...\n");
+        if (file_offset > 0) printf("    [P] Previous files...\n");
+        if (end < file_count) printf("    [N] More files...\n");
     }
     // Show directories
     printf("\n  Directories:\n");
-    if (dir_count == 0) {
-        printf("    (no subdirectories)\n");
-    }
+    if (dir_count == 0) printf("    (no subdirectories)\n");
     else {
         end = dir_offset + PAGE_SIZE;
         if (end > dir_count) end = dir_count;
@@ -257,10 +248,8 @@ void display_menu(void) {
             printf("    %3d.  %-30s  %s  %s\n",
                 i, dirs[i].name, datebuf, perms);
         }
-        if (dir_offset > 0)
-            printf("    [P] Previous dirs...\n");
-        if (end < dir_count)
-            printf("    [N] More dirs...\n");
+        if (dir_offset > 0) printf("    [P] Previous dirs...\n");
+        if (end < dir_count) printf("    [N] More dirs...\n");
     }
     // Available commands
     printf("\n------------------------------------------------\n");
@@ -307,9 +296,7 @@ void run_program(char *cmd_line) {
     // Fork process
     pid_t pid = fork();
     // If fork failed start complaining
-    if (pid == -1) {
-        perror("fork");
-    }
+    if (pid == -1) perror("fork");
     else if (pid == 0) {
         // Child process
         execvp(argv[0], argv);
@@ -320,6 +307,49 @@ void run_program(char *cmd_line) {
         // Parent wait
         wait(NULL);
     }
+}
+
+// --- Bonus #1 ---
+// Scans files and dirs for entries that start with the typed partial name
+// If exactly one match is found, replaces buf with the full name
+// If multiple matches, prints them so user knows what's available
+int try_complete(char *buf, int bufsize) {
+    int len = strlen(buf);
+    if (len == 0) return 0;
+    int match_count = 0;
+    char matched_name[MAX_NAME];
+    matched_name[0] = '\0';
+    // Check files
+    for (int i = 0; i < file_count; i++) {
+        if (strncmp(files[i].name, buf, len) == 0) {
+            match_count++;
+            strncpy(matched_name, files[i].name, MAX_NAME - 1);
+        }
+    }
+    // Check dirs
+    for (int i = 0; i < dir_count; i++) {
+        if (strncmp(dirs[i].name, buf, len) == 0) {
+            match_count++;
+            strncpy(matched_name, dirs[i].name, MAX_NAME - 1);
+        }
+    }
+    if (match_count == 1) {
+        // If exactly one match complete it
+        strncpy(buf, matched_name, bufsize - 1);
+        buf[bufsize - 1] = '\0';
+        printf("  Completed: %s\n", buf);
+    }
+    else if (match_count > 1) {
+        // If multiple matches show them so user can choose
+        printf("  Multiple matches:\n");
+        for (int i = 0; i < file_count; i++)
+            if (strncmp(files[i].name, buf, len) == 0)
+                printf("    %s\n", files[i].name);
+        for (int i = 0; i < dir_count; i++)
+            if (strncmp(dirs[i].name, buf, len) == 0)
+                printf("    %s/\n", dirs[i].name);
+    }
+    return match_count;
 }
 
 // Opens nano text editor
@@ -336,15 +366,27 @@ void cmd_edit(void) {
         printf("  No file specified.\n");
         return;
     }
-    // Change number to filename
-    char *filename = input;
-    char resolved[MAX_NAME];
-    int num = -1;
-    // If input is an int
+    // Check if is num
     int is_num = 1;
     for (int i = 0; input[i] != '\0'; i++) {
         if (!isdigit((unsigned char)input[i])) { is_num = 0; break; }
     }
+    // If not number attempt to autocomplete
+    if (!is_num) {
+        int matches = try_complete(input, sizeof(input));
+        if (matches == 0) {
+            // No match at all
+            printf("  No match found, opening as new file.\n");
+        } else if (matches > 1) {
+            // Multiple matches
+            printf("  Be more specific.\n");
+            return;
+        }
+    }
+    // Change number to filename
+    char *filename = input;
+    char resolved[MAX_NAME];
+    int num = -1;
     if (is_num) num = atoi(input);
     if (num >= 0 && num < file_count) {
         strncpy(resolved, files[num].name, MAX_NAME - 1);
@@ -422,7 +464,18 @@ void cmd_change_dir(void) {
     // Check if input is num
     int is_num = 1;
     for (int i = 0; input[i] != '\0'; i++) {
-        if (!isdigit((unsigned char)input[i])) { is_num = 0; break; }
+        if (!isdigit((unsigned char)input[i])) {
+            is_num = 0;
+            break;
+        }
+    }
+    if (!is_num) {
+        // Try autocomplete
+        int matches = try_complete(input, sizeof(input));
+        if (matches > 1) {
+            printf("  Be more specific.\n");
+            return;
+        }
     }
     // Find what directory it correlates to
     if (is_num) {
@@ -455,7 +508,10 @@ void cmd_move_to_dir(void) {
     // Ensure its a number
     int is_num = 1;
     for (int i = 0; input[i] != '\0'; i++) {
-        if (!isdigit((unsigned char)input[i])) { is_num = 0; break; }
+        if (!isdigit((unsigned char)input[i])) {
+            is_num = 0;
+            break;
+        }
     }
     if (!is_num) {
         printf("  Please enter a valid number.\n");
@@ -521,9 +577,7 @@ void cmd_prev(void) {
 int main(int argc, char *argv[]) {
     // If file path provided
     if (argc > 1) {
-        if (chdir(argv[1]) == -1) {
-            perror("chdir (startup)");
-        }
+        if (chdir(argv[1]) == -1) perror("chdir (startup)");
     }
     // Load initial directory
     load_directory();
