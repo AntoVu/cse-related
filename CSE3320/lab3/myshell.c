@@ -151,6 +151,25 @@ void sort_entries(void) {
     dir_offset = 0;
 }
 
+// --- BONUS #3 ---
+// Converts raw bytes to readable strings
+void fmt_size(off_t bytes, char *buf, int buflen) {
+    if (bytes >= 1024 * 1024 * 1024)
+        snprintf(buf, buflen, "%.1fG", (double)bytes / (1024.0 * 1024 * 1024));
+    else if (bytes >= 1024 * 1024)
+        snprintf(buf, buflen, "%.1fM", (double)bytes / (1024.0 * 1024));
+    else if (bytes >= 1024)
+        snprintf(buf, buflen, "%.1fK", (double)bytes / 1024.0);
+    else
+        snprintf(buf, buflen, "%ldB", (long)bytes);
+}
+
+// Formats mtime as to "MM DD YYYY HH:MM"
+void fmt_date(time_t mtime, char *buf, int buflen) {
+    struct tm *tm = localtime(&mtime);
+    strftime(buf, buflen, "%b %d %Y %H:%M", tm);
+}
+
 // Displays the menu
 // Show the current directory
 // Show current date and time
@@ -183,8 +202,27 @@ void display_menu(void) {
     else {
         end = file_offset + PAGE_SIZE;
         if (end > file_count) end = file_count;
-        for (i = file_offset; i < end; i++)
-            printf("    %3d.  %s\n", i, files[i].name);
+        // Display files with size, time and date, and permissions
+        for (i = file_offset; i < end; i++) {
+            char sizebuf[12], datebuf[20];
+            fmt_size(files[i].size, sizebuf, sizeof(sizebuf));
+            fmt_date(files[i].mtime, datebuf, sizeof(datebuf));
+            // Build permission string
+            mode_t m = files[i].mode;
+            char perms[10];
+            perms[0] = (m & S_IRUSR) ? 'r' : '-';
+            perms[1] = (m & S_IWUSR) ? 'w' : '-';
+            perms[2] = (m & S_IXUSR) ? 'x' : '-';
+            perms[3] = (m & S_IRGRP) ? 'r' : '-';
+            perms[4] = (m & S_IWGRP) ? 'w' : '-';
+            perms[5] = (m & S_IXGRP) ? 'x' : '-';
+            perms[6] = (m & S_IROTH) ? 'r' : '-';
+            perms[7] = (m & S_IWOTH) ? 'w' : '-';
+            perms[8] = (m & S_IXOTH) ? 'x' : '-';
+            perms[9] = '\0';
+            printf("    %3d.  %-30s  %6s  %s  %s\n",
+                i, files[i].name, sizebuf, datebuf, perms);
+        }
         // If too many files on display, show prompts to tell user you can change view
         if (file_offset > 0)
             printf("    [P] Previous files...\n");
@@ -199,8 +237,26 @@ void display_menu(void) {
     else {
         end = dir_offset + PAGE_SIZE;
         if (end > dir_count) end = dir_count;
-        for (i = dir_offset; i < end; i++)
-            printf("    %3d.  %s\n", i, dirs[i].name);
+        // Display directories with same data as files aside from size
+        for (i = dir_offset; i < end; i++) {
+            char datebuf[20];
+            fmt_date(dirs[i].mtime, datebuf, sizeof(datebuf));
+            mode_t m = dirs[i].mode;
+            char perms[10];
+            perms[0] = (m & S_IRUSR) ? 'r' : '-';
+            perms[1] = (m & S_IWUSR) ? 'w' : '-';
+            perms[2] = (m & S_IXUSR) ? 'x' : '-';
+            perms[3] = (m & S_IRGRP) ? 'r' : '-';
+            perms[4] = (m & S_IWGRP) ? 'w' : '-';
+            perms[5] = (m & S_IXGRP) ? 'x' : '-';
+            perms[6] = (m & S_IROTH) ? 'r' : '-';
+            perms[7] = (m & S_IWOTH) ? 'w' : '-';
+            perms[8] = (m & S_IXOTH) ? 'x' : '-';
+            perms[9] = '\0';
+            // Directories don't show size
+            printf("    %3d.  %-30s  %s  %s\n",
+                i, dirs[i].name, datebuf, perms);
+        }
         if (dir_offset > 0)
             printf("    [P] Previous dirs...\n");
         if (end < dir_count)
