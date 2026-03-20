@@ -14,7 +14,6 @@
 #include <dirent.h> // Directory handling
 #include <limits.h> // Prevent buffer overflow
 #include <sys/wait.h> // Used for parent process to wait for child
-#include <curses.h> // For bonus 2
 
 #define MAX_ENTRIES 1024
 #define MAX_NAME 2048
@@ -115,65 +114,35 @@ int cmp_by_date(const void *a, const void *b) {
     return 0;
 }
 
-// --- BONUS #2 ---
-// Reads characters one at a time until full or enter key hit
-void ncurses_getline(char *buf, int bufsize) {
-    int len = 0;
-    buf[0] = '\0';
-    echo();
-    int ch;
-    while (len < bufsize - 1) {
-        ch = getch();
-        if (ch == '\n' || ch == '\r') break;
-        if (ch == KEY_BACKSPACE || ch == 127) {
-            if (len > 0) len--;
-        }
-        else if (ch >= 32 && ch < 127) {
-            buf[len++] = (char)ch;
-        }
-    }
-    buf[len] = '\0';
-    noecho();
-}
-
 // Let user choose how to sort files and directories
 void sort_entries(void) {
     char choice[8];
     // Read user input
-    printw("\nSort by: (N)ame  (S)ize  (D)ate: ");
-    refresh();
-    ncurses_getline(choice, sizeof(choice));
+    printf("\nSort by: (N)ame  (S)ize  (D)ate: ");
+    if (fgets(choice, sizeof(choice), stdin) == NULL) return;
     // Allow for both uppercase and lowercase (take notes lab2)
     char c = toupper(choice[0]);
     // Sort by name using qsort
     if (c == 'N') {
         qsort(files, file_count, sizeof(FileEntry), cmp_by_name);
         qsort(dirs, dir_count, sizeof(FileEntry), cmp_by_name);
-        printw("Sorted by name.\n");
-        refresh();
-        getch();
+        printf("Sorted by name.\n");
     }
     // Sort by size using qsort
     else if (c == 'S') {
         qsort(files, file_count, sizeof(FileEntry), cmp_by_size);
         qsort(dirs, dir_count, sizeof(FileEntry), cmp_by_name);
-        printw("Sorted by size.\n");
-        refresh();
-        getch();
+        printf("Sorted by size.\n");
     }
     // Sort by date using qsort
     else if (c == 'D') {
         qsort(files, file_count, sizeof(FileEntry), cmp_by_date);
         qsort(dirs, dir_count, sizeof(FileEntry), cmp_by_date);
-        printw("Sorted by date.\n");
-        refresh();
-        getch();
+        printf("Sorted by date.\n");
     }
     // Complain
     else {
-        printw("Unknown sort option. Keeping current order.\n");
-        refresh();
-        getch();
+        printf("Unknown sort option. Keeping current order.\n");
     }
     // Reset pagination (set view list back to 0-4 instead of keeping it on something like 5-9 after sorting)
     file_offset = 0;
@@ -209,13 +178,10 @@ void display_menu(void) {
     char cwd[PATH_MAX];
     time_t t;
     int i, end;
-    // Wipe screen
-    clear();
-    // Move to top left
-    move(0, 0);
-    printw("================================================\n");
+    printf("\n================================================\n");
     // Current working directory
-    if (getcwd(cwd, sizeof(cwd)) != NULL) printw("  Current Working Dir: %s\n", cwd);
+    if (getcwd(cwd, sizeof(cwd)) != NULL) printf("  Current Working Dir: %s\n", cwd);
+    else perror("getcwd");
     // Time
     t = time(NULL);
     // Used ChatGPT to show how to convert from UTC to CST
@@ -224,12 +190,11 @@ void display_menu(void) {
     struct tm *local = localtime(&t);
     char timebuf[64];
     strftime(timebuf, sizeof(timebuf), "%B %d %Y, %I:%M %p %Z", local);
-    printw("  Current Time: %s\n", timebuf);
+    printf("  Current Time: %s\n", timebuf);
     // Show files
-    printw("\n  Files:\n");
-    if (file_count == 0) {
-        printw("    (no files)\n");
-    } else {
+    printf("\n  Files:\n");
+    if (file_count == 0) printf("    (no files)\n");
+    else {
         end = file_offset + PAGE_SIZE;
         if (end > file_count) end = file_count;
         // Display files with size, time and date, and permissions
@@ -250,17 +215,17 @@ void display_menu(void) {
             perms[7] = (m & S_IWOTH) ? 'w' : '-';
             perms[8] = (m & S_IXOTH) ? 'x' : '-';
             perms[9] = '\0';
-            printw("    %3d.  %-30s  %6s  %s  %s\n", i, files[i].name, sizebuf, datebuf, perms);
+            printf("    %3d.  %-30s  %6s  %s  %s\n",
+                i, files[i].name, sizebuf, datebuf, perms);
         }
         // If too many files on display, show prompts to tell user you can change view
-        if (file_offset > 0) printw("    [P] Previous files...\n");
-        if (end < file_count) printw("    [N] More files...\n");
+        if (file_offset > 0) printf("    [P] Previous files...\n");
+        if (end < file_count) printf("    [N] More files...\n");
     }
     // Show directories
-    printw("\n  Directories:\n");
-    if (dir_count == 0) {
-        printw("    (no subdirectories)\n");
-    } else {
+    printf("\n  Directories:\n");
+    if (dir_count == 0) printf("    (no subdirectories)\n");
+    else {
         end = dir_offset + PAGE_SIZE;
         if (end > dir_count) end = dir_count;
         // Display directories with same data as files aside from size
@@ -280,27 +245,26 @@ void display_menu(void) {
             perms[8] = (m & S_IXOTH) ? 'x' : '-';
             perms[9] = '\0';
             // Directories don't show size
-            printw("    %3d.  %-30s  %s  %s\n", i, dirs[i].name, datebuf, perms);
+            printf("    %3d.  %-30s  %s  %s\n",
+                i, dirs[i].name, datebuf, perms);
         }
-        if (dir_offset > 0) printw("    [P] Previous dirs...\n");
-        if (end < dir_count) printw("    [N] More dirs...\n");
+        if (dir_offset > 0) printf("    [P] Previous dirs...\n");
+        if (end < dir_count) printf("    [N] More dirs...\n");
     }
     // Available commands
-    printw("\n------------------------------------------------\n");
-    printw("  Operations:\n");
-    printw("    E  Edit a file\n");
-    printw("    R  Run a program\n");
-    printw("    C  Change directory\n");
-    printw("    S  Sort directory listing\n");
-    printw("    M  Move into a directory\n");
-    printw("    X  Remove a file\n");
-    printw("    N  Next page\n");
-    printw("    P  Previous page\n");
-    printw("    Q  Quit\n");
-    printw("------------------------------------------------\n");
-    printw("  Command: ");
-    // Refresh to put everything on screen
-    refresh();
+    printf("\n------------------------------------------------\n");
+    printf("  Operations:\n");
+    printf("    E  Edit a file\n");
+    printf("    R  Run a program\n");
+    printf("    C  Change directory\n");
+    printf("    S  Sort directory listing\n");
+    printf("    M  Move into a directory\n");
+    printf("    X  Remove a file\n");
+    printf("    N  Next page\n");
+    printf("    P  Previous page\n");
+    printf("    Q  Quit\n");
+    printf("------------------------------------------------\n");
+    printf("  Command: ");
 }
 
 // Runs the program by forking child process to prevent using system()
@@ -309,8 +273,7 @@ void run_program(char *cmd_line) {
     cmd_line[strcspn(cmd_line, "\n")] = '\0';
     // Complain
     if (strlen(cmd_line) == 0) {
-        printw("No command entered.\n");
-        refresh();
+        printf("No command entered.\n");
         return;
     }
     // argv[0] is program name then arguments then null
@@ -327,10 +290,10 @@ void run_program(char *cmd_line) {
     }
     argv[argc] = NULL; 
     // More complaining
-    if (argc == 0) return;
-    // Give terminal back to normal before running child program
-    def_prog_mode();
-    endwin();
+    if (argc == 0) {
+        printf("No command entered.\n");
+        return;
+    }
     // Fork process
     pid_t pid = fork();
     // If fork failed start complaining
@@ -341,10 +304,10 @@ void run_program(char *cmd_line) {
         perror("execvp");
         exit(1);
     }
-    else wait(NULL);
-    // Restore ncurses after child exits
-    reset_prog_mode();
-    refresh();
+    else {
+        // Parent wait
+        wait(NULL);
+    }
 }
 
 // --- Bonus #1 ---
@@ -375,23 +338,17 @@ int try_complete(char *buf, int bufsize) {
         // If exactly one match complete it
         strncpy(buf, matched_name, bufsize - 1);
         buf[bufsize - 1] = '\0';
-        printw("  Completed: %s\n", buf);
-        refresh();
+        printf("  Completed: %s\n", buf);
     }
     else if (match_count > 1) {
         // If multiple matches show them so user can choose
-        printw("  Multiple matches:\n");
-        refresh();
+        printf("  Multiple matches:\n");
         for (int i = 0; i < file_count; i++)
-            if (strncmp(files[i].name, buf, len) == 0) {
-                printw("    %s\n", files[i].name);
-                refresh();
-            }
+            if (strncmp(files[i].name, buf, len) == 0)
+                printf("    %s\n", files[i].name);
         for (int i = 0; i < dir_count; i++)
-            if (strncmp(dirs[i].name, buf, len) == 0) {
-                printw("    %s/\n", dirs[i].name);
-                refresh();
-            }
+            if (strncmp(dirs[i].name, buf, len) == 0)
+                printf("    %s/\n", dirs[i].name);
     }
     return match_count;
 }
@@ -402,14 +359,12 @@ void cmd_edit(void) {
     char input[MAX_NAME];
     char cmd[MAX_NAME + 8];
     // Display
-    printw("  Edit file name (or number): ");
-    refresh();
-    ncurses_getline(input, sizeof(input));
+    printf("  Edit file name (or number): ");
+    if (fgets(input, sizeof(input), stdin) == NULL) return;
+    input[strcspn(input, "\n")] = '\0';
     // More complaining
     if (strlen(input) == 0) {
-        printw("  No file specified.\n");
-        refresh();
-        getch();
+        printf("  No file specified.\n");
         return;
     }
     // Check if is num
@@ -422,12 +377,10 @@ void cmd_edit(void) {
         int matches = try_complete(input, sizeof(input));
         if (matches == 0) {
             // No match at all
-            printw("  No match found, opening as new file.\n");
-            refresh();
+            printf("  No match found, opening as new file.\n");
         } else if (matches > 1) {
             // Multiple matches
-            printw("  Be more specific.\n");
-            refresh();
+            printf("  Be more specific.\n");
             return;
         }
     }
@@ -451,14 +404,12 @@ void cmd_edit(void) {
 void cmd_run(void) {
     char input[MAX_NAME * 2];
     // Gets program name or number
-    printw("  Run (program [args], or file number): ");
-    refresh();
-    ncurses_getline(input, sizeof(input));
+    printf("  Run (program [args], or file number): ");
+    if (fgets(input, sizeof(input), stdin) == NULL) return;
+    input[strcspn(input, "\n")] = '\0';
     // More complaining
     if (strlen(input) == 0) {
-        printw("  No program specified.\n");
-        refresh();
-        getch();
+        printf("  No program specified.\n");
         return;
     }
     // Extract first token
@@ -476,16 +427,12 @@ void cmd_run(void) {
     if (is_num) {
         int num = atoi(first_token);
         if (num < 0 || num >= file_count) {
-            printw("  Invalid file number.\n");
-            refresh();
-            getch();
+            printf("  Invalid file number.\n");
             return;
         }
         // Validate index and check executable (if you have access)
         if (access(files[num].name, X_OK) != 0) {
-            printw("  '%s' is not executable.\n", files[num].name);
-            refresh();
-            getch();
+            printf("  '%s' is not executable.\n", files[num].name);
             return;
         }
         // Build
@@ -504,14 +451,12 @@ void cmd_run(void) {
 void cmd_change_dir(void) {
     char input[MAX_NAME];
     // Gets path or number
-    printw("  Change to (path or dir number): ");
-    refresh();
-    ncurses_getline(input, sizeof(input));
+    printf("  Change to (path or dir number): ");
+    if (fgets(input, sizeof(input), stdin) == NULL) return;
+    input[strcspn(input, "\n")] = '\0';
     // Complain
     if (strlen(input) == 0) {
-        printw("  No directory specified.\n");
-        refresh();
-        getch();
+        printf("  No directory specified.\n");
         return;
     }
     // Resolve directory if needed
@@ -529,9 +474,7 @@ void cmd_change_dir(void) {
         // Try autocomplete
         int matches = try_complete(input, sizeof(input));
         if (matches > 1) {
-            printw("  Be more specific.\n");
-            refresh();
-            getch();
+            printf("  Be more specific.\n");
             return;
         }
     }
@@ -539,9 +482,7 @@ void cmd_change_dir(void) {
     if (is_num) {
         int num = atoi(input);
         if (num < 0 || num >= dir_count) {
-            printw("  Invalid directory number.\n");
-            refresh();
-            getch();
+            printf("  Invalid directory number.\n");
             return;
         }
         strncpy(resolved, dirs[num].name, MAX_NAME - 1);
@@ -562,9 +503,9 @@ void cmd_change_dir(void) {
 void cmd_move_to_dir(void) {
     char input[16];
     // Get number
-    printw("  Move to directory number: ");
-    refresh();
-    ncurses_getline(input, sizeof(input));
+    printf("  Move to directory number: ");
+    if (fgets(input, sizeof(input), stdin) == NULL) return;
+    input[strcspn(input, "\n")] = '\0';
     // Ensure its a number
     int is_num = 1;
     for (int i = 0; input[i] != '\0'; i++) {
@@ -574,17 +515,13 @@ void cmd_move_to_dir(void) {
         }
     }
     if (!is_num) {
-        printw("  Please enter a valid number.\n");
-        refresh();
-        getch();
+        printf("  Please enter a valid number.\n");
         return;
     }
     // Complain
     int num = atoi(input);
     if (num < 0 || num >= dir_count) {
-        printw("  Invalid directory number.\n");
-        refresh();
-        getch();
+        printf("  Invalid directory number.\n");
         return;
     }
     // If not found then error
@@ -608,11 +545,8 @@ void cmd_next(void) {
         dir_offset += PAGE_SIZE;
         changed = 1;
     }
-    if (!changed) {
-        printw("  Already at the last page.\n");
-        refresh();
-        getch();
-    }
+    if (!changed)
+        printf("  Already at the last page.\n");
 }
 
 // Go back to previous file and directory page view
@@ -636,23 +570,18 @@ void cmd_prev(void) {
         dir_offset = 0;
         changed = 1;
     }
-    if (!changed) {
-        printw("  Already at the first page.\n");
-        refresh();
-        getch();
-    }
+    if (!changed)
+        printf("  Already at the first page.\n");
 }
 
 // Removes a file by name or number
 void cmd_remove_file(void) {
     char input[MAX_NAME];
-    printw("  Remove file (name or number): ");
-    refresh();
-    ncurses_getline(input, sizeof(input));
+    printf("  Remove file (name or number): ");
+    if (fgets(input, sizeof(input), stdin) == NULL) return;
+    input[strcspn(input, "\n")] = '\0';
     if (strlen(input) == 0) {
-        printw("  No file specified.\n");
-        refresh();
-        getch();
+        printf("  No file specified.\n");
         return;
     }
     // Check if number
@@ -664,9 +593,7 @@ void cmd_remove_file(void) {
     if (is_num) {
         int num = atoi(input);
         if (num < 0 || num >= file_count) {
-            printw("  Invalid file number.\n");
-            refresh();
-            getch();
+            printf("  Invalid file number.\n");
             return;
         }
         strncpy(resolved, files[num].name, MAX_NAME - 1);
@@ -675,14 +602,10 @@ void cmd_remove_file(void) {
     }
     // Remove the file if possible
     if (remove(filename) == -1) {
-        printw("  Failed to remove '%s'.\n", filename);
-        refresh();
-        getch();
+        printf("  Failed to remove '%s'.\n", filename);
     }
     else {
-        printw("  Removed '%s'.\n", filename);
-        refresh();
-        getch();
+        printf("  Removed '%s'.\n", filename);
         load_directory();
     }
 }
@@ -695,17 +618,17 @@ int main(int argc, char *argv[]) {
     }
     // Load initial directory
     load_directory();
-    // Set up ncurses
-    initscr();
-    cbreak();
-    noecho();
-    keypad(stdscr, TRUE);
+    char input[8];
     // Infinite loop until user quits
     while (1) {
         display_menu();
         // Read user input (only accepts first character)
-        int ch = getch();
-        char cmd = toupper((unsigned char)ch);
+        if (fgets(input, sizeof(input), stdin) == NULL) {
+            // EOF same as quit
+            break;
+        }
+        // Accept both upper and lowercase (take notes lab2)
+        char cmd = toupper((unsigned char)input[0]);
         // See which command user chose
         switch (cmd) {
             // Edit file
@@ -743,7 +666,6 @@ int main(int argc, char *argv[]) {
                 break;
             // Quit
             case 'Q':
-                endwin();
                 printf("\nQuitting.\n");
                 exit(0);
             // If empty just do nothing
@@ -752,13 +674,11 @@ int main(int argc, char *argv[]) {
                 break;
             // If user is incapable of following directions
             default:
-                printw("  Unknown command '%c'. Please try again.\n", cmd);
-                refresh();
-                getch();
+                printf("  Unknown command '%c'. Please try again.\n", cmd);
                 break;
         }
     }
-    endwin();
+
     return 0;
 }
 
