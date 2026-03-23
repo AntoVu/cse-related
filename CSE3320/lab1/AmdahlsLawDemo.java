@@ -138,7 +138,7 @@ public class AmdahlsLawDemo {
         // 5. Compare the Measured and Theoretical speedups in your report and discuss.
 
         double P = T_processing_unoptimized / T_unoptimized;
-        double S = T_processing_optimized / T_optimized;
+        double S = T_processing_unoptimized / T_processing_optimized;
         double speedup = T_unoptimized / T_optimized;
         double theorteical = 1 / ((1-P) + (P/S));
         System.out.println("\nP: " + P + "\nS: " + S + "\nSpeedup: " + speedup + "\nTheoretical: " + theorteical);
