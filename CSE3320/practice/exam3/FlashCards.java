@@ -15,7 +15,7 @@ public class FlashCards {
 
     // loadDeck returns an array of Card filled with our vocab words for Exam #1.
     // You MUST provide Card.java correctly for this to compile and run!
-    private static final int numCards = 21;
+    private static final int numCards = 29;
     private static Card[] loadDeck() {
         Card[] cards = new Card[numCards];
         int i = 0;
@@ -36,10 +36,18 @@ public class FlashCards {
         cards[i++] = new Card("Quality of Service", "QoS");
         cards[i++] = new Card("Low Earth Orbit", "LEO");
         cards[i++] = new Card("Geostationary Equalatorial Orbit", "GEO");
+        cards[i++] = new Card("Mean Time Between Failure", "MTBF");
         cards[i++] = new Card("Denial of Service", "DoS");
         cards[i++] = new Card("Data Encryption Standard", "DES");
         cards[i++] = new Card("Advanced Encryption Standard", "AES");
         cards[i++] = new Card("Rivest Shamir Adleman", "RSA");
+        cards[i++] = new Card("Application", "OSI Model: A");
+        cards[i++] = new Card("Presentation", "OSI Model: P");
+        cards[i++] = new Card("Session", "OSI Model: S");
+        cards[i++] = new Card("Transport", "OSI Model: T");
+        cards[i++] = new Card("Network", "OSI Model: N");
+        cards[i++] = new Card("Data Link", "OSI Model: D");
+        cards[i++] = new Card("Physical", "OSI Model: P");
         return cards;
     }
     
