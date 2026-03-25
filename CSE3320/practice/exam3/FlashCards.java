@@ -27,11 +27,11 @@ public class FlashCards {
         cards[i++] = new Card("Media Access Control", "MAC");
         cards[i++] = new Card("Open Systems Interconnection", "OSI");
         cards[i++] = new Card("Transmission Control Protocol", "TCP");
-        cards[i++] = new Card("User Datagram Program", "UDP");
+        cards[i++] = new Card("User Datagram Protocol", "UDP");
         cards[i++] = new Card("File Transfer Protocol", "FTP");
         cards[i++] = new Card("Hypertext Transfer Protocol", "HTTP");
         cards[i++] = new Card("Simple Mail Transfer Protocol", "SMTP");
-        cards[i++] = new Card("Internet Access Message Protocol", "IMAP");
+        cards[i++] = new Card("Internet Message Access Protocol", "IMAP");
         cards[i++] = new Card("Point of Presence", "PoP");
         cards[i++] = new Card("Quality of Service", "QoS");
         cards[i++] = new Card("Low Earth Orbit", "LEO");
