@@ -6,12 +6,15 @@
 
 import os
 
+# get the correct file
 curr = os.path.dirname(os.path.abspath(__file__))
 inp = os.path.join(curr, "input_RPN.txt")
 
+# open the file
 with open(inp, "r") as f:
     lines = f.read().splitlines()
 
+# rpn calc
 def eval_rpn(expr):
     stack = []
     tokens = expr.split()
@@ -31,6 +34,7 @@ def eval_rpn(expr):
             stack.append(int(token))
     return stack[0]
 
+# do calc on imported file
 for line in lines:
     if line.strip():
         result = eval_rpn(line.strip())
