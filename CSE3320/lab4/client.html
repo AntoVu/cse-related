@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SecureStore</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+      color: #222;
+      margin: 0;
+      padding: 0;
+    }
+
+    #navbar {
+      background: #336699;
+      color: white;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #navbar h1 { margin: 0; font-size: 20px; }
+    #nav-user { font-size: 14px; }
+    #nav-user button {
+      margin-left: 10px;
+      padding: 4px 10px;
+      background: #cc3333;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    #content {
+      max-width: 700px;
+      margin: 30px auto;
+      padding: 0 16px;
+    }
+
+    .box {
+      background: white;
+      border: 1px solid #cccccc;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .box h2 {
+      margin-top: 0;
+      font-size: 16px;
+      border-bottom: 1px solid #cccccc;
+      padding-bottom: 8px;
+      margin-bottom: 14px;
+    }
+
+    label { display: block; margin-top: 10px; font-size: 14px; }
+    input[type=text], input[type=password] {
+      width: 100%;
+      padding: 6px 8px;
+      margin-top: 3px;
+      border: 1px solid #aaa;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    button {
+      padding: 6px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-top: 10px;
+      border: 1px solid #336699;
+      background: #336699;
+      color: white;
+    }
+    button:hover { background: #254f7a; }
+
+    .tab-btn {
+      padding: 6px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid #aaa;
+      background: #e0e0e0;
+      color: #333;
+      margin-right: 4px;
+    }
+    .tab-btn.active {
+      background: white;
+      border-bottom: 1px solid white;
+      font-weight: bold;
+    }
+    .tab-bar {
+      margin-bottom: 14px;
+      border-bottom: 1px solid #aaa;
+      padding-bottom: 0;
+    }
+
+    .msg {
+      padding: 8px 10px;
+      margin-top: 10px;
+      font-size: 13px;
+      display: none;
+      border: 1px solid #aaa;
+      background: #ffffcc;
+    }
+    .msg.show { display: block; }
+    .msg.error { background: #ffe0e0; border-color: #cc0000; color: #cc0000; }
+    .msg.success { background: #e0ffe0; border-color: #007700; color: #007700; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 6px 8px; background: #e8e8e8; border-bottom: 2px solid #ccc; }
+    td { padding: 7px 8px; border-bottom: 1px solid #ddd; }
+    tr:last-child td { border-bottom: none; }
+
+    #drop-zone {
+      border: 2px dashed #aaa;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 14px;
+      color: #555;
+      background: #fafafa;
+    }
+    #drop-zone:hover { background: #f0f4ff; border-color: #336699; }
+
+    #file-input { display: none; }
+
+    #progress-wrap { display: none; margin-top: 10px; }
+    #progress-wrap.show { display: block; }
+    progress { width: 100%; height: 14px; }
+
+    #view-login { display: block; }
+    #view-app { display: none; }
+  </style>
+</head>
+<body>
+
+<div id="navbar">
+  <h1>SecureStore</h1>
+  <div id="nav-user" style="display:none">
+    Logged in as <strong id="nav-username"></strong>
+    <button onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<div id="content">
+  <div id="view-login">
+    <div class="box" style="max-width:380px; margin:0 auto">
+      <h2>SecureStore Login</h2>
+      <p style="font-size:13px; color:#555; margin-bottom:14px">
+        Encrypted cloud file storage
+      </p>
+
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tab-btn-login" onclick="switchTab('login')">Login</button>
+        <button class="tab-btn" id="tab-btn-register" onclick="switchTab('register')">Register</button>
+      </div>
+
+      <div id="tab-login">
+        <label>Username</label>
+        <input type="text" id="login-user" placeholder="your username">
+        <label>Password</label>
+        <input type="password" id="login-pass" placeholder="password" onkeydown="if(event.key==='Enter') doLogin()">
+        <button onclick="doLogin()">Login</button>
+        <div id="login-alert" class="msg"></div>
+      </div>
+
+      <div id="tab-register" style="display:none">
+        <label>Username</label>
+        <input type="text" id="reg-user" placeholder="choose a username">
+        <label>Password</label>
+        <input type="password" id="reg-pass" placeholder="password" onkeydown="if(event.key==='Enter') doRegister()">
+        <button onclick="doRegister()">Create Account</button>
+        <div id="reg-alert" class="msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-app">
+    <div class="box">
+      <h2>Upload File</h2>
+
+      <div id="drop-zone"
+           onclick="document.getElementById('file-input').click()"
+           ondragover="event.preventDefault(); this.style.background='#f0f4ff'"
+           ondragleave="this.style.background=''"
+           ondrop="handleDrop(event)">
+        Click here to select a file, or drag and drop one here.<br>
+        <small>Files are encrypted with AES-256-CBC before being stored on the server.</small>
+      </div>
+
+      <input type="file" id="file-input" multiple onchange="handleFileInput(this.files)">
+
+      <div id="progress-wrap">
+        <progress id="upload-progress" value="0" max="100"></progress>
+        <p id="progress-label" style="font-size:12px; margin:4px 0 0 0"></p>
+      </div>
+
+      <div id="upload-alert" class="msg"></div>
+    </div>
+
+    <div class="box">
+      <h2>
+        Stored Files
+        <button style="float:right; margin-top:0; padding:3px 10px; font-size:12px" onclick="loadFiles()">Refresh</button>
+      </h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Enc. Size</th>
+            <th>Uploaded</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="fileList">
+          <tr><td colspan="4">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+
+// Store username and token in localStorage (if no token then show login page)
+let TOKEN = localStorage.getItem('ss_token') || null;
+let USERNAME = localStorage.getItem('ss_user') || null;
+
+// If saved token exists skip login screen and go to app view
+window.addEventListener('DOMContentLoaded', function() {
+  if (TOKEN) {
+    showApp();
+    loadFiles();
+  }
+});
+
+// Switching tabs from login and register
+function switchTab(tab) {
+  // Highlight active tab
+  document.getElementById('tab-btn-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-btn-register').classList.toggle('active', tab === 'register');
+
+  // Show the matching form
+  document.getElementById('tab-login').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('tab-register').style.display = tab === 'register' ? '' : 'none';
+}
+
+// Login on success returns session token
+async function doLogin() {
+  var u = document.getElementById('login-user').value.trim();
+  var p = document.getElementById('login-pass').value;
+  var al = document.getElementById('login-alert');
+  if (!u || !p) return showMsg(al, 'Please fill in both fields.', 'error');
+
+  var res = await api('/api/login', 'POST', {username: u, password: p});
+  if (res.ok) {
+    // Store token and username
+    TOKEN = res.token;
+    USERNAME = res.username;
+    localStorage.setItem('ss_token', TOKEN);
+    localStorage.setItem('ss_user', USERNAME);
+    showApp();
+    loadFiles();
+  } else {
+    showMsg(al, res.message || 'Login failed. Check your username and password.', 'error');
+  }
+}
+
+// Register a new user and redirect to login
+async function doRegister() {
+  var u = document.getElementById('reg-user').value.trim();
+  var p = document.getElementById('reg-pass').value;
+  var al = document.getElementById('reg-alert');
+  if (!u || !p) return showMsg(al, 'Please fill in both fields.', 'error');
+
+  var res = await api('/api/register', 'POST', {username: u, password: p});
+  if (res.ok) {
+    showMsg(al, 'Account created! You can now log in.', 'success');
+    switchTab('login');
+    document.getElementById('login-user').value = u; // Autofill the username
+  } else {
+    showMsg(al, res.message || 'Registration failed. Username may already be taken.', 'error');
+  }
+}
+
+// Logout discard token and return to login
+function logout() {
+  TOKEN = null;
+  USERNAME = null;
+  localStorage.removeItem('ss_token');
+  localStorage.removeItem('ss_user');
+  document.getElementById('view-app').style.display = 'none';
+  document.getElementById('view-login').style.display = 'block';
+  document.getElementById('nav-user').style.display = 'none';
+}
+
+// Show upload and files
+function showApp() {
+  document.getElementById('view-login').style.display = 'none';
+  document.getElementById('view-app').style.display = 'block';
+  document.getElementById('nav-user').style.display = '';
+  document.getElementById('nav-username').textContent = USERNAME;
+}
+
+// Allow for drag and drop
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').style.background = '';
+  uploadFiles([...e.dataTransfer.files]);
+}
+
+// Called when user picks files
+function handleFileInput(files) { uploadFiles([...files]); }
+
+// Upload files and sends to be encrypted
+async function uploadFiles(files) {
+  if (!files.length) return;
+
+  var al = document.getElementById('upload-alert');
+  var pw = document.getElementById('progress-wrap');
+  var bar = document.getElementById('upload-progress');
+  var lbl = document.getElementById('progress-label');
+
+  pw.classList.add('show'); // Progress bar
+  hideMsg(al);
+
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    lbl.textContent = 'Uploading ' + file.name + ' (' + (i+1) + '/' + files.length + ')...';
+    bar.value = 0;
+
+    // Read file into a buffer before sending
+    var buf = await file.arrayBuffer();
+    bar.value = 40;
+
+    // Filename goes in header
+    var res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + TOKEN,
+        'X-Filename': encodeURIComponent(file.name),
+        'Content-Type': 'application/octet-stream',
+      },
+      body: buf,
+    }).then(function(r) { return r.json(); })
+      .catch(function() { return {ok: false, message: 'Network error'}; });
+
+    bar.value = 100;
+    if (!res.ok) {
+      showMsg(al, 'Failed to upload ' + file.name + ': ' + res.message, 'error');
+    }
+  }
+
+  lbl.textContent = 'Done - ' + files.length + ' file(s) uploaded.';
+  showMsg(al, files.length + ' file(s) successfully encrypted and stored.', 'success');
+
+  // Hide the progress bar after 2 seconds
+  setTimeout(function() { pw.classList.remove('show'); bar.value = 0; }, 2000);
+  loadFiles(); // Refresh to show new files
+}
+
+// Loads the files
+async function loadFiles() {
+  var tbody = document.getElementById('fileList');
+  var res = await api('/api/list', 'GET');
+
+  if (!res.ok) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:red">Failed to load files.</td></tr>';
+    return;
+  }
+
+  if (res.files.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#888">No files stored yet.</td></tr>';
+    return;
+  }
+
+  // Make table row for each file and download button
+  var rows = res.files.map(function(f) {
+    return '<tr>' +
+      '<td>' + escHtml(f.name) + '</td>' +
+      '<td>' + formatBytes(f.size_enc) + '</td>' +
+      '<td>' + f.uploaded_at + '</td>' +
+      '<td><button style="margin-top:0;padding:3px 10px;font-size:12px" ' +
+        'onclick="downloadFile(\'' + escHtml(f.name) + '\')">Download</button></td>' +
+    '</tr>';
+  }).join('');
+
+  tbody.innerHTML = rows;
+}
+
+// Sends file to be decrypted and downloads it
+async function downloadFile(name) {
+  var res = await fetch('/api/download?name=' + encodeURIComponent(name), {
+    headers: {'Authorization': 'Bearer ' + TOKEN},
+  });
+
+  if (!res.ok) {
+    var body = await res.json().catch(function() { return {message: 'Download failed'}; });
+    alert('Download failed: ' + body.message);
+    return;
+  }
+
+  var blob = await res.blob();
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Helper for JSON API calls
+async function api(path, method, body) {
+  var opts = {
+    method: method,
+    headers: {'Content-Type': 'application/json'},
+  };
+  // Attach session token
+  if (TOKEN) opts.headers['Authorization'] = 'Bearer ' + TOKEN;
+  // Only include body
+  if (body && method !== 'GET') opts.body = JSON.stringify(body);
+
+  try {
+    var r = await fetch(path, opts);
+    return await r.json();
+  } catch(e) {
+    return {ok: false, message: 'Network error: ' + e.message};
+  }
+}
+
+// Show status message inside given element
+function showMsg(el, msg, type) {
+  el.textContent = msg;
+  el.className = 'msg ' + type + ' show';
+}
+function hideMsg(el) { el.className = 'msg'; }
+
+// Escape special HTML characters
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Convert size into readable string
+function formatBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+  return (n/1024/1024).toFixed(2) + ' MB';
+}
+</script>
+</body>
+</html>
