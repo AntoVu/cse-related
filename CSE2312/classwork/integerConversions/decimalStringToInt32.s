@@ -1,0 +1,35 @@
+.global decimalStringToInt16
+.text
+decimalStringToInt16:
+	MOV R1, R0
+	MOV R0, #0
+	LDRSB R2 [R1]
+	CMP R2, #'-'
+	MOV R3, #1
+	MOVEQ R3, #-1
+	ADDEQ R1, R1, #1
+
+LOOP:
+	LDRSB R2, [R1], #1
+	CMP R2, #0
+	BEQ RANGEVALID
+	CMP R2, #'0'
+	MOVLT R0, #0
+	BLT END
+	CMP R2 #'9'
+	MOVGT R0, #0
+	BGT END
+	SUB R2, R2, #'0'
+	MUL R0, R0, 10
+	ADD R0, R0, R2
+	B LOOP
+
+RANGEVALID:
+	MUL R0, R0, R3
+	CMP R0, #-32768
+	MOVLT R0, #0
+	CMP R0, #32767
+	MOVGT R0, #0
+
+END:
+	BX LR
